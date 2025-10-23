@@ -174,7 +174,9 @@ def main():
         fail = pyautogui.locateCenterOnScreen('fail.png', confidence=0.6)  # 查找失败图像
         ok = pyautogui.locateCenterOnScreen('pass.png', confidence=0.6)   # 查找通过图像
         front = pyautogui.locateCenterOnScreen('front.png', confidence=0.4)  # 查找就绪图像
-        nfcScreen = pyautogui.locateCenterOnScreen(f'{NFCModel}.png', confidence=0.6)  # 查找NFC图像
+        if machineID == 'NFC':
+            nfcScreen = pyautogui.locateCenterOnScreen(f'{NFCModel}.png', confidence=0.6)  # 查找NFC图像
+        
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:  # 创建TCP套接字
             try:
                 s.connect((HOST, PORT))  # 连接到PLC
