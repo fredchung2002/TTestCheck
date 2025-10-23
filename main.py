@@ -84,22 +84,23 @@ def loadSettings():
     加载配置文件
     
     返回值：
-        dict: 包含defaultIP和defaultDM的配置字典
+        dict: 包含defaultIP和defaultDM和NFCModel的配置字典
     """
     with open('settings.json', 'r') as settingsFile:
         return json.load(settingsFile)
 
 
-def saveSettings(IP, DM):
+def saveSettings(IP, DM, NFCModel):
     """
     保存配置到文件
     
     参数：
         IP (str): PLC的IP地址
         DM (str): 设备标识符（如'T1', 'T2'等）
+        NFCModel (str): NFC模型（如'PN532'等）
     """
     with open('settings.json', 'w') as settingsFile:
-        Settings = {'defaultIP': IP, 'defaultDM': DM}
+        Settings = {'defaultIP': IP, 'defaultDM': DM, 'defaultNFCModel': NFCModel}
         json.dump(Settings, settingsFile)
 
 
@@ -173,7 +174,7 @@ def main():
         fail = pyautogui.locateCenterOnScreen('fail.png', confidence=0.6)  # 查找失败图像
         ok = pyautogui.locateCenterOnScreen('pass.png', confidence=0.6)   # 查找通过图像
         front = pyautogui.locateCenterOnScreen('front.png', confidence=0.4)  # 查找就绪图像
-        
+        nfcScreen = pyautogui.locateCenterOnScreen(f'{NFCModel}.png', confidence=0.6)  # 查找NFC图像
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:  # 创建TCP套接字
             try:
                 s.connect((HOST, PORT))  # 连接到PLC
@@ -204,6 +205,14 @@ def main():
                     #         pyautogui.moveTo(xh, yh, 1)
                     #         pyautogui.click()
                     #     back = 0
+                    if machineID == 'NFC':
+                        if nfcScreen is not None:
+                            print(str(datetime.datetime.now()), 'ready')  # 输出就绪信息
+                            s.sendall(sendByte(DMResult, case['ready']))
+                        else:
+                            print(Back.RED + str(datetime.datetime.now()), 'NFC model not match!')  # 输出NFC未找到信息
+                            s.sendall(sendByte(DMResult, case['fail']))  # 发送NFC未找到状态命令
+                   
 
                     print(str(datetime.datetime.now()), 'ready')  # 输出就绪信息
                     s.sendall(sendByte(DMResult, case['ready']))  # 发送就绪状态命令
@@ -231,17 +240,22 @@ if __name__ == '__main__':
     settings = loadSettings()
     defaultIP = settings['defaultIP']  # 获取默认IP地址
     defaultDM = settings['defaultDM']  # 获取默认设备类型
+    defaultNFCModel = settings['defaultNFCModel']  # 获取默认NFC模型
     
     # 通过对话框获取用户输入的IP和设备ID
     HOST = pyautogui.prompt(text='请输入PLC IP 地址:', title='IP Address', default=defaultIP)
     machineID = pyautogui.prompt(text='请输入电脑ID:\n(T1/T2/D1/D2/NFC)', title='PLC DM号', default=defaultDM)
-    
+    if machineID == 'NFC':
+        NFCModel = pyautogui.prompt(text='请输入NFC模型:\n', title='NFC模型', default=defaultNFCModel)
+    else:
+        NFCModel = defaultNFCModel
+     
     # 根据设备ID获取对应的地址
     DMResult = DMResults[machineID]
     DMScanner = DMScanners[machineID]
     
     # 保存用户设置
-    saveSettings(HOST, machineID)
+    saveSettings(HOST, machineID, NFCModel)
 
     # 创建并启动心跳线程
     heartbeat_thread = threading.Thread(target=heartBeat, args=(heartbeat_send[machineID], heartbeat_recv[machineID]))
